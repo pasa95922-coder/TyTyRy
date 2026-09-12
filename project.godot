@@ -1,0 +1,21 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+config/name="Game Starter"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(0.055, 0.071, 0.11, 1)
+
+[display/window]
+size/viewport_width=1280
+size/viewport_height=720
+size/window_width_override=1280
+size/window_height_override=720
+stretch/mode="canvas_items"
+stretch/aspect="expand"
+handheld/orientation=3
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

@@ -1,0 +1,16 @@
+# Godot editor cache and imports
+.godot/
+.import/
+
+# Android and release exports
+*.apk
+*.aab
+*.keystore
+*.jks
+android/build/
+android/.gradle/
+
+# Local settings and operating-system files
+.env
+.DS_Store
+Thumbs.db
