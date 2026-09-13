@@ -8,6 +8,11 @@ const MUTED := Color("aab9df")
 const ACCENT := Color("4fe0ca")
 const GOLD := Color("ffd36b")
 const DANGER := Color("ff7892")
+const WEAPON_RECIPES := {
+	"common": {"title": "Обычное оружие", "level": 1, "coins": 40, "fangs": 4, "crystals": 0},
+	"rare": {"title": "Редкое оружие", "level": 4, "coins": 120, "fangs": 8, "crystals": 3},
+	"epic": {"title": "Эпическое оружие", "level": 8, "coins": 320, "fangs": 14, "crystals": 8}
+}
 
 var coins := 0
 var click_power := 1
@@ -29,6 +34,9 @@ var fortune_rank := 0
 var totem_rank := 0
 var precision_rank := 0
 var rage_cooldown := 0
+var fangs := 0
+var crystals := 0
+var equipped_weapon := ""
 
 var balance_label: Label
 var passive_summary_label: Label
@@ -48,6 +56,11 @@ var fortune_button: Button
 var totem_button: Button
 var precision_button: Button
 var rage_button: Button
+var ingredients_label: Label
+var weapon_label: Label
+var common_forge_button: Button
+var rare_forge_button: Button
+var epic_forge_button: Button
 var passive_timer: Timer
 
 func _ready() -> void:
@@ -104,6 +117,9 @@ func start_game() -> void:
 	totem_rank = 0
 	precision_rank = 0
 	rage_cooldown = 0
+	fangs = 0
+	crystals = 0
+	equipped_weapon = ""
 	spawn_monster()
 	build_game_screen()
 
@@ -190,6 +206,32 @@ func build_game_screen() -> void:
 	critical_upgrade_button = make_upgrade_button()
 	critical_upgrade_button.pressed.connect(buy_critical_upgrade)
 	upgrades.add_child(critical_upgrade_button)
+	var forge_heading := make_label("Кузница", 22, TEXT)
+	layout.add_child(forge_heading)
+	var forge_card := PanelContainer.new()
+	forge_card.add_theme_stylebox_override("panel", panel_style(Color("20264b"), 18))
+	layout.add_child(forge_card)
+	var forge_content := VBoxContainer.new()
+	forge_content.add_theme_constant_override("separation", 9)
+	forge_content.add_theme_constant_override("margin_left", 18)
+	forge_content.add_theme_constant_override("margin_right", 18)
+	forge_content.add_theme_constant_override("margin_top", 16)
+	forge_content.add_theme_constant_override("margin_bottom", 16)
+	forge_card.add_child(forge_content)
+	ingredients_label = make_label("", 15, GOLD)
+	forge_content.add_child(ingredients_label)
+	weapon_label = make_label("", 15, ACCENT)
+	weapon_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	forge_content.add_child(weapon_label)
+	common_forge_button = make_upgrade_button()
+	common_forge_button.pressed.connect(forge_weapon.bind("common"))
+	forge_content.add_child(common_forge_button)
+	rare_forge_button = make_upgrade_button()
+	rare_forge_button.pressed.connect(forge_weapon.bind("rare"))
+	forge_content.add_child(rare_forge_button)
+	epic_forge_button = make_upgrade_button()
+	epic_forge_button.pressed.connect(forge_weapon.bind("epic"))
+	forge_content.add_child(epic_forge_button)
 	var talents_heading := make_label("Путь героя", 22, TEXT)
 	layout.add_child(talents_heading)
 	var talents_hint := make_label("Очки талантов даются за уровни. Выберите направление и соберите свой билд.", 14, MUTED)
@@ -232,9 +274,10 @@ func attack_monster() -> void:
 		var reward := monster_reward()
 		coins += reward
 		gain_experience(monster_level * 3)
+		var loot_text := roll_ingredients()
 		monster_level += 1
 		spawn_monster()
-		status_label.text = "+%d монет! Появился монстр уровня %d." % [reward, monster_level]
+		status_label.text = "+%d монет. %s" % [reward, loot_text]
 	else:
 		status_label.text = ("КРИТИЧЕСКИЙ УДАР на %d!" if critical else "Удар на %d урона.") % damage
 	update_game_ui()
@@ -296,6 +339,28 @@ func buy_talent(talent: String) -> void:
 	status_label.text = "Талант улучшен: " + talent_title(talent) + "."
 	update_game_ui()
 
+func forge_weapon(rarity: String) -> void:
+	var recipe: Dictionary = WEAPON_RECIPES[rarity]
+	var required_level: int = recipe["level"]
+	var required_coins: int = recipe["coins"]
+	var required_fangs: int = recipe["fangs"]
+	var required_crystals: int = recipe["crystals"]
+	if player_level < required_level:
+		status_label.text = "Кузнице нужен уровень игрока %d." % required_level
+		return
+	if weapon_rank(rarity) <= weapon_rank(equipped_weapon):
+		status_label.text = "Уже экипировано оружие не ниже этой редкости."
+		return
+	if coins < required_coins or fangs < required_fangs or crystals < required_crystals:
+		status_label.text = "Не хватает монет или ингредиентов для ковки."
+		return
+	coins -= required_coins
+	fangs -= required_fangs
+	crystals -= required_crystals
+	equipped_weapon = rarity
+	status_label.text = "Выковано: %s! Урон оружия растёт с уровнем героя." % recipe["title"]
+	update_game_ui()
+
 func use_rage() -> void:
 	if berserker_rank < 3:
 		status_label.text = "Ярость откроется на 3 ранге Когтей берсерка."
@@ -309,9 +374,10 @@ func use_rage() -> void:
 		var reward := monster_reward()
 		coins += reward
 		gain_experience(monster_level * 3)
+		var loot_text := roll_ingredients()
 		monster_level += 1
 		spawn_monster()
-		status_label.text = "ЯРОСТЬ уничтожила цель! +%d монет." % reward
+		status_label.text = "ЯРОСТЬ уничтожила цель! +%d монет. %s" % [reward, loot_text]
 	else:
 		status_label.text = "ЯРОСТЬ нанесла %d урона." % damage
 	update_game_ui()
@@ -327,6 +393,26 @@ func monster_reward() -> int:
 	reward = int(round(float(reward) * (1.0 + 0.18 * fortune_rank)))
 	return reward * 4 if is_boss() else reward
 
+func roll_ingredients() -> String:
+	var fang_chance: float = 0.62 if not is_boss() else 0.95
+	var crystal_chance: float = 0.28 if not is_boss() else 0.70
+	var gained_fangs := 0
+	var gained_crystals := 0
+	if randf() < fang_chance:
+		gained_fangs = randi_range(1, 2) + (1 if is_boss() else 0)
+		fangs += gained_fangs
+	if randf() < crystal_chance:
+		gained_crystals = 1 + (1 if is_boss() else 0)
+		crystals += gained_crystals
+	if gained_fangs == 0 and gained_crystals == 0:
+		return "Ингредиенты не выпали."
+	var parts: Array[String] = []
+	if gained_fangs > 0:
+		parts.append("+%d клыка" % gained_fangs)
+	if gained_crystals > 0:
+		parts.append("+%d осколка" % gained_crystals)
+	return "Добыча: " + ", ".join(parts)
+
 func is_boss() -> bool:
 	return monster_level % 10 == 0
 
@@ -340,7 +426,26 @@ func gain_experience(amount: int) -> void:
 		status_label.text = "Уровень игрока повышен до %d! +1 очко таланта." % player_level
 
 func manual_damage() -> int:
-	return int(round(float(click_power) * (1.0 + 0.22 * berserker_rank)))
+	return int(round(float(click_power + weapon_damage()) * (1.0 + 0.22 * berserker_rank)))
+
+func weapon_damage() -> int:
+	match equipped_weapon:
+		"common": return 3 + player_level * 2
+		"rare": return 10 + player_level * 4
+		"epic": return 26 + player_level * 7
+	return 0
+
+func weapon_rank(rarity: String) -> int:
+	match rarity:
+		"common": return 1
+		"rare": return 2
+		"epic": return 3
+	return 0
+
+func weapon_title() -> String:
+	if equipped_weapon.is_empty():
+		return "Оружие не экипировано"
+	return WEAPON_RECIPES[equipped_weapon]["title"]
 
 func effective_passive_income() -> int:
 	return int(round(float(passive_income) * (1.0 + 0.25 * totem_rank)))
@@ -393,6 +498,11 @@ func update_game_ui() -> void:
 	click_upgrade_button.text = "Усилить удар  +1\nСтоимость: %d монет" % click_upgrade_cost
 	passive_upgrade_button.text = "Пассивный доход  +1/с\nСтоимость: %d монет" % passive_upgrade_cost
 	critical_upgrade_button.text = "Критический удар  +5%%\nУрон ×%d · стоимость: %d монет" % [critical_multiplier, critical_upgrade_cost]
+	ingredients_label.text = "Ингредиенты: клыки %d · осколки %d" % [fangs, crystals]
+	weapon_label.text = "Экипировано: %s · урон оружия: +%d (растёт с уровнем)" % [weapon_title(), weapon_damage()]
+	common_forge_button.text = forge_button_text("common")
+	rare_forge_button.text = forge_button_text("rare")
+	epic_forge_button.text = forge_button_text("epic")
 	berserker_button.text = "Когти берсерка  %d/5\n+22%% к урону от кликов" % berserker_rank
 	fortune_button.text = "Золотой след  %d/5\n+18%% к награде за убийство" % fortune_rank
 	totem_button.text = "Тотем добычи  %d/5\n+25%% к пассивному доходу" % totem_rank
@@ -406,6 +516,17 @@ func update_game_ui() -> void:
 	totem_button.disabled = skill_points <= 0 or totem_rank >= 5
 	precision_button.disabled = skill_points <= 0 or precision_rank >= 5
 	rage_button.disabled = berserker_rank < 3 or rage_cooldown > 0
+	common_forge_button.disabled = not can_forge("common")
+	rare_forge_button.disabled = not can_forge("rare")
+	epic_forge_button.disabled = not can_forge("epic")
+
+func forge_button_text(rarity: String) -> String:
+	var recipe: Dictionary = WEAPON_RECIPES[rarity]
+	return "%s · уровень %d+\n%d монет · %d клыков · %d осколков" % [recipe["title"], recipe["level"], recipe["coins"], recipe["fangs"], recipe["crystals"]]
+
+func can_forge(rarity: String) -> bool:
+	var recipe: Dictionary = WEAPON_RECIPES[rarity]
+	return player_level >= recipe["level"] and coins >= recipe["coins"] and fangs >= recipe["fangs"] and crystals >= recipe["crystals"] and weapon_rank(rarity) > weapon_rank(equipped_weapon)
 
 func clear_screen() -> void:
 	for child in get_children():
