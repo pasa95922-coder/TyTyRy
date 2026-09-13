@@ -206,31 +206,39 @@ func build_hunt_page(host: Control) -> void:
 	arena_box.add_child(monster_health_label)
 	monster_health_bar = make_progress_bar(18, DANGER)
 	arena_box.add_child(monster_health_bar)
+	var arena := Control.new()
+	arena.custom_minimum_size = Vector2(0, 290)
+	arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	arena.clip_contents = true
+	arena_box.add_child(arena)
 	monster_button = Button.new()
-	monster_button.custom_minimum_size = Vector2(0, 290)
-	monster_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	monster_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	monster_button.tooltip_text = "Нажмите на монстра, чтобы атаковать"
 	monster_button.add_theme_stylebox_override("normal", panel_style(Color("101934"), 16))
 	monster_button.add_theme_stylebox_override("hover", panel_style(Color("17244a"), 16))
 	monster_button.add_theme_stylebox_override("pressed", panel_style(Color("263561"), 16))
 	monster_button.pressed.connect(attack_monster)
-	arena_box.add_child(monster_button)
+	arena.add_child(monster_button)
 	monster_sprite = TextureRect.new()
-	monster_sprite.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	monster_sprite.anchor_left = 0.5
+	monster_sprite.anchor_top = 0.5
+	monster_sprite.anchor_right = 0.5
+	monster_sprite.anchor_bottom = 0.5
+	monster_sprite.offset_left = -145
+	monster_sprite.offset_top = -145
+	monster_sprite.offset_right = 145
+	monster_sprite.offset_bottom = 145
 	monster_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	monster_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	monster_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	monster_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	monster_sprite.z_index = 2
-	monster_sprite.offset_left = -18
-	monster_sprite.offset_right = 18
-	monster_sprite.offset_top = -12
-	monster_sprite.offset_bottom = 12
-	monster_button.add_child(monster_sprite)
+	arena.add_child(monster_sprite)
 	damage_layer = Control.new()
 	damage_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	damage_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	monster_button.add_child(damage_layer)
+	damage_layer.z_index = 3
+	arena.add_child(damage_layer)
 	var tap_hint := make_label("Нажмите на монстра, чтобы атаковать", 14, ACCENT)
 	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	arena_box.add_child(tap_hint)
