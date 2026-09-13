@@ -23,10 +23,17 @@ var critical_upgrade_cost := 40
 var player_level := 1
 var player_experience := 0
 var experience_to_next_level := 30
+var skill_points := 1
+var berserker_rank := 0
+var fortune_rank := 0
+var totem_rank := 0
+var precision_rank := 0
+var rage_cooldown := 0
 
 var balance_label: Label
 var passive_summary_label: Label
 var player_level_label: Label
+var build_label: Label
 var experience_bar: ProgressBar
 var monster_title: Label
 var monster_health_label: Label
@@ -36,6 +43,11 @@ var status_label: Label
 var click_upgrade_button: Button
 var passive_upgrade_button: Button
 var critical_upgrade_button: Button
+var berserker_button: Button
+var fortune_button: Button
+var totem_button: Button
+var precision_button: Button
+var rage_button: Button
 var passive_timer: Timer
 
 func _ready() -> void:
@@ -86,6 +98,12 @@ func start_game() -> void:
 	player_level = 1
 	player_experience = 0
 	experience_to_next_level = 30
+	skill_points = 1
+	berserker_rank = 0
+	fortune_rank = 0
+	totem_rank = 0
+	precision_rank = 0
+	rage_cooldown = 0
 	spawn_monster()
 	build_game_screen()
 
@@ -119,6 +137,8 @@ func build_game_screen() -> void:
 	layout.add_child(passive_summary_label)
 	player_level_label = make_label("", 15, ACCENT)
 	layout.add_child(player_level_label)
+	build_label = make_label("", 14, MUTED)
+	layout.add_child(build_label)
 	experience_bar = ProgressBar.new()
 	experience_bar.custom_minimum_size = Vector2(0, 14)
 	experience_bar.show_percentage = false
@@ -170,6 +190,30 @@ func build_game_screen() -> void:
 	critical_upgrade_button = make_upgrade_button()
 	critical_upgrade_button.pressed.connect(buy_critical_upgrade)
 	upgrades.add_child(critical_upgrade_button)
+	var talents_heading := make_label("Путь героя", 22, TEXT)
+	layout.add_child(talents_heading)
+	var talents_hint := make_label("Очки талантов даются за уровни. Выберите направление и соберите свой билд.", 14, MUTED)
+	talents_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(talents_hint)
+	var talents := VBoxContainer.new()
+	talents.add_theme_constant_override("separation", 10)
+	layout.add_child(talents)
+	berserker_button = make_upgrade_button()
+	berserker_button.pressed.connect(buy_talent.bind("berserker"))
+	talents.add_child(berserker_button)
+	fortune_button = make_upgrade_button()
+	fortune_button.pressed.connect(buy_talent.bind("fortune"))
+	talents.add_child(fortune_button)
+	totem_button = make_upgrade_button()
+	totem_button.pressed.connect(buy_talent.bind("totem"))
+	talents.add_child(totem_button)
+	precision_button = make_upgrade_button()
+	precision_button.pressed.connect(buy_talent.bind("precision"))
+	talents.add_child(precision_button)
+	rage_button = make_button("", 18, Color("5a386f"))
+	rage_button.custom_minimum_size = Vector2(0, 66)
+	rage_button.pressed.connect(use_rage)
+	talents.add_child(rage_button)
 	var hint := make_label("Каждый 10-й монстр — босс: у него больше здоровья, зато награда заметно выше.", 14, MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(hint)
@@ -181,8 +225,8 @@ func build_game_screen() -> void:
 	update_game_ui()
 
 func attack_monster() -> void:
-	var critical := randf() < critical_chance
-	var damage := click_power * (critical_multiplier if critical else 1)
+	var critical := randf() < total_critical_chance()
+	var damage := manual_damage() * (critical_multiplier if critical else 1)
 	monster_health = max(monster_health - damage, 0)
 	if monster_health <= 0:
 		var reward := monster_reward()
@@ -196,10 +240,14 @@ func attack_monster() -> void:
 	update_game_ui()
 
 func on_passive_tick() -> void:
-	if passive_income <= 0:
+	if rage_cooldown > 0:
+		rage_cooldown -= 1
+	var income := effective_passive_income()
+	if income <= 0:
+		update_game_ui()
 		return
-	coins += passive_income
-	status_label.text = "+%d монет пассивного дохода." % passive_income
+	coins += income
+	status_label.text = "+%d монет пассивного дохода." % income
 	update_game_ui()
 
 func buy_click_upgrade() -> void:
@@ -232,6 +280,42 @@ func buy_critical_upgrade() -> void:
 	status_label.text = "Шанс критического удара: %d%%." % int(critical_chance * 100.0)
 	update_game_ui()
 
+func buy_talent(talent: String) -> void:
+	if skill_points <= 0:
+		status_label.text = "Нужно новое очко таланта: получите уровень игрока."
+		return
+	if talent_rank(talent) >= 5:
+		status_label.text = "Этот талант уже развит до максимума."
+		return
+	skill_points -= 1
+	match talent:
+		"berserker": berserker_rank += 1
+		"fortune": fortune_rank += 1
+		"totem": totem_rank += 1
+		"precision": precision_rank += 1
+	status_label.text = "Талант улучшен: " + talent_title(talent) + "."
+	update_game_ui()
+
+func use_rage() -> void:
+	if berserker_rank < 3:
+		status_label.text = "Ярость откроется на 3 ранге Когтей берсерка."
+		return
+	if rage_cooldown > 0:
+		return
+	var damage := manual_damage() * 8
+	monster_health = max(monster_health - damage, 0)
+	rage_cooldown = 15
+	if monster_health <= 0:
+		var reward := monster_reward()
+		coins += reward
+		gain_experience(monster_level * 3)
+		monster_level += 1
+		spawn_monster()
+		status_label.text = "ЯРОСТЬ уничтожила цель! +%d монет." % reward
+	else:
+		status_label.text = "ЯРОСТЬ нанесла %d урона." % damage
+	update_game_ui()
+
 func spawn_monster() -> void:
 	monster_max_health = 18 + monster_level * 12 + monster_level * monster_level * 4
 	if is_boss():
@@ -240,6 +324,7 @@ func spawn_monster() -> void:
 
 func monster_reward() -> int:
 	var reward := 6 + monster_level * 5
+	reward = int(round(float(reward) * (1.0 + 0.18 * fortune_rank)))
 	return reward * 4 if is_boss() else reward
 
 func is_boss() -> bool:
@@ -251,28 +336,76 @@ func gain_experience(amount: int) -> void:
 		player_experience -= experience_to_next_level
 		player_level += 1
 		experience_to_next_level = int(ceil(float(experience_to_next_level) * 1.45))
-		click_power += 1
-		status_label.text = "Уровень игрока повышен до %d! Сила удара +1." % player_level
+		skill_points += 1
+		status_label.text = "Уровень игрока повышен до %d! +1 очко таланта." % player_level
+
+func manual_damage() -> int:
+	return int(round(float(click_power) * (1.0 + 0.22 * berserker_rank)))
+
+func effective_passive_income() -> int:
+	return int(round(float(passive_income) * (1.0 + 0.25 * totem_rank)))
+
+func total_critical_chance() -> float:
+	return min(critical_chance + 0.03 * precision_rank, 0.75)
+
+func talent_rank(talent: String) -> int:
+	match talent:
+		"berserker": return berserker_rank
+		"fortune": return fortune_rank
+		"totem": return totem_rank
+		"precision": return precision_rank
+	return 0
+
+func talent_title(talent: String) -> String:
+	match talent:
+		"berserker": return "Когти берсерка"
+		"fortune": return "Золотой след"
+		"totem": return "Тотем добычи"
+		"precision": return "Точный удар"
+	return "Талант"
+
+func build_name() -> String:
+	var highest: int = max(max(berserker_rank, fortune_rank), max(totem_rank, precision_rank))
+	if highest == 0:
+		return "Свободный охотник"
+	if berserker_rank == highest:
+		return "Берсерк"
+	if fortune_rank == highest:
+		return "Золотой охотник"
+	if totem_rank == highest:
+		return "Шаман добычи"
+	return "Точный хищник"
 
 func update_game_ui() -> void:
 	if balance_label == null:
 		return
 	balance_label.text = "◈ %d" % coins
-	passive_summary_label.text = "Пассивный доход: %d монет/с · Удар: %d · Крит: %d%%" % [passive_income, click_power, int(critical_chance * 100.0)]
-	player_level_label.text = "Игрок — уровень %d · опыт %d / %d" % [player_level, player_experience, experience_to_next_level]
+	passive_summary_label.text = "Пассивный доход: %d/с · Удар: %d · Крит: %d%%" % [effective_passive_income(), manual_damage(), int(total_critical_chance() * 100.0)]
+	player_level_label.text = "Игрок — уровень %d · опыт %d / %d · очки талантов: %d" % [player_level, player_experience, experience_to_next_level, skill_points]
+	build_label.text = "Текущий билд: " + build_name()
 	experience_bar.max_value = experience_to_next_level
 	experience_bar.value = player_experience
 	monster_title.text = ("БОСС: древний монстрик" if is_boss() else "Монстрик") + " · уровень %d" % monster_level
 	monster_health_label.text = "Здоровье: %d / %d" % [monster_health, monster_max_health]
 	monster_health_bar.max_value = monster_max_health
 	monster_health_bar.value = monster_health
-	monster_button.text = ("☠" if is_boss() else "◉") + "\nАТАКОВАТЬ\nурон: %d" % click_power
+	monster_button.text = ("☠" if is_boss() else "◉") + "\nАТАКОВАТЬ\nурон: %d" % manual_damage()
 	click_upgrade_button.text = "Усилить удар  +1\nСтоимость: %d монет" % click_upgrade_cost
 	passive_upgrade_button.text = "Пассивный доход  +1/с\nСтоимость: %d монет" % passive_upgrade_cost
 	critical_upgrade_button.text = "Критический удар  +5%%\nУрон ×%d · стоимость: %d монет" % [critical_multiplier, critical_upgrade_cost]
+	berserker_button.text = "Когти берсерка  %d/5\n+22%% к урону от кликов" % berserker_rank
+	fortune_button.text = "Золотой след  %d/5\n+18%% к награде за убийство" % fortune_rank
+	totem_button.text = "Тотем добычи  %d/5\n+25%% к пассивному доходу" % totem_rank
+	precision_button.text = "Точный удар  %d/5\n+3%% к шансу крита" % precision_rank
+	rage_button.text = ("Ярость берсерка\nНаносит ×8 урона" if berserker_rank >= 3 else "Ярость берсерка — закрыто\nНужно 3/5 Когтей берсерка") + (" · %d с" % rage_cooldown if rage_cooldown > 0 else "")
 	click_upgrade_button.disabled = coins < click_upgrade_cost
 	passive_upgrade_button.disabled = coins < passive_upgrade_cost
 	critical_upgrade_button.disabled = coins < critical_upgrade_cost
+	berserker_button.disabled = skill_points <= 0 or berserker_rank >= 5
+	fortune_button.disabled = skill_points <= 0 or fortune_rank >= 5
+	totem_button.disabled = skill_points <= 0 or totem_rank >= 5
+	precision_button.disabled = skill_points <= 0 or precision_rank >= 5
+	rage_button.disabled = berserker_rank < 3 or rage_cooldown > 0
 
 func clear_screen() -> void:
 	for child in get_children():
