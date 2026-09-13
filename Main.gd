@@ -17,9 +17,17 @@ var monster_health := 0
 var monster_max_health := 0
 var click_upgrade_cost := 15
 var passive_upgrade_cost := 25
+var critical_chance := 0.0
+var critical_multiplier := 2
+var critical_upgrade_cost := 40
+var player_level := 1
+var player_experience := 0
+var experience_to_next_level := 30
 
 var balance_label: Label
 var passive_summary_label: Label
+var player_level_label: Label
+var experience_bar: ProgressBar
 var monster_title: Label
 var monster_health_label: Label
 var monster_health_bar: ProgressBar
@@ -27,6 +35,7 @@ var monster_button: Button
 var status_label: Label
 var click_upgrade_button: Button
 var passive_upgrade_button: Button
+var critical_upgrade_button: Button
 var passive_timer: Timer
 
 func _ready() -> void:
@@ -71,6 +80,12 @@ func start_game() -> void:
 	monster_level = 1
 	click_upgrade_cost = 15
 	passive_upgrade_cost = 25
+	critical_chance = 0.0
+	critical_multiplier = 2
+	critical_upgrade_cost = 40
+	player_level = 1
+	player_experience = 0
+	experience_to_next_level = 30
 	spawn_monster()
 	build_game_screen()
 
@@ -102,6 +117,14 @@ func build_game_screen() -> void:
 	header.add_child(balance_label)
 	passive_summary_label = make_label("", 15, MUTED)
 	layout.add_child(passive_summary_label)
+	player_level_label = make_label("", 15, ACCENT)
+	layout.add_child(player_level_label)
+	experience_bar = ProgressBar.new()
+	experience_bar.custom_minimum_size = Vector2(0, 14)
+	experience_bar.show_percentage = false
+	experience_bar.add_theme_stylebox_override("background", panel_style(Color("10172d"), 8))
+	experience_bar.add_theme_stylebox_override("fill", panel_style(ACCENT, 8))
+	layout.add_child(experience_bar)
 	layout.add_child(HSeparator.new())
 	var monster_card := PanelContainer.new()
 	monster_card.add_theme_stylebox_override("panel", panel_style(PANEL, 22))
@@ -144,7 +167,10 @@ func build_game_screen() -> void:
 	passive_upgrade_button = make_upgrade_button()
 	passive_upgrade_button.pressed.connect(buy_passive_upgrade)
 	upgrades.add_child(passive_upgrade_button)
-	var hint := make_label("Совет: чем выше уровень монстра, тем больше здоровье и награда.", 14, MUTED)
+	critical_upgrade_button = make_upgrade_button()
+	critical_upgrade_button.pressed.connect(buy_critical_upgrade)
+	upgrades.add_child(critical_upgrade_button)
+	var hint := make_label("Каждый 10-й монстр — босс: у него больше здоровья, зато награда заметно выше.", 14, MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(hint)
 	passive_timer = Timer.new()
@@ -155,15 +181,18 @@ func build_game_screen() -> void:
 	update_game_ui()
 
 func attack_monster() -> void:
-	monster_health = max(monster_health - click_power, 0)
+	var critical := randf() < critical_chance
+	var damage := click_power * (critical_multiplier if critical else 1)
+	monster_health = max(monster_health - damage, 0)
 	if monster_health <= 0:
 		var reward := monster_reward()
 		coins += reward
+		gain_experience(monster_level * 3)
 		monster_level += 1
 		spawn_monster()
 		status_label.text = "+%d монет! Появился монстр уровня %d." % [reward, monster_level]
 	else:
-		status_label.text = "Удар на %d урона." % click_power
+		status_label.text = ("КРИТИЧЕСКИЙ УДАР на %d!" if critical else "Удар на %d урона.") % damage
 	update_game_ui()
 
 func on_passive_tick() -> void:
@@ -193,27 +222,57 @@ func buy_passive_upgrade() -> void:
 	status_label.text = "Пассивный доход увеличен до %d/с." % passive_income
 	update_game_ui()
 
+func buy_critical_upgrade() -> void:
+	if coins < critical_upgrade_cost:
+		status_label.text = "Недостаточно монет для критического удара."
+		return
+	coins -= critical_upgrade_cost
+	critical_chance = min(critical_chance + 0.05, 0.50)
+	critical_upgrade_cost = int(ceil(float(critical_upgrade_cost) * 1.85))
+	status_label.text = "Шанс критического удара: %d%%." % int(critical_chance * 100.0)
+	update_game_ui()
+
 func spawn_monster() -> void:
 	monster_max_health = 18 + monster_level * 12 + monster_level * monster_level * 4
+	if is_boss():
+		monster_max_health *= 3
 	monster_health = monster_max_health
 
 func monster_reward() -> int:
-	return 6 + monster_level * 5
+	var reward := 6 + monster_level * 5
+	return reward * 4 if is_boss() else reward
+
+func is_boss() -> bool:
+	return monster_level % 10 == 0
+
+func gain_experience(amount: int) -> void:
+	player_experience += amount
+	while player_experience >= experience_to_next_level:
+		player_experience -= experience_to_next_level
+		player_level += 1
+		experience_to_next_level = int(ceil(float(experience_to_next_level) * 1.45))
+		click_power += 1
+		status_label.text = "Уровень игрока повышен до %d! Сила удара +1." % player_level
 
 func update_game_ui() -> void:
 	if balance_label == null:
 		return
 	balance_label.text = "◈ %d" % coins
-	passive_summary_label.text = "Пассивный доход: %d монет/с · Удар: %d" % [passive_income, click_power]
-	monster_title.text = "Монстрик · уровень %d" % monster_level
+	passive_summary_label.text = "Пассивный доход: %d монет/с · Удар: %d · Крит: %d%%" % [passive_income, click_power, int(critical_chance * 100.0)]
+	player_level_label.text = "Игрок — уровень %d · опыт %d / %d" % [player_level, player_experience, experience_to_next_level]
+	experience_bar.max_value = experience_to_next_level
+	experience_bar.value = player_experience
+	monster_title.text = ("БОСС: древний монстрик" if is_boss() else "Монстрик") + " · уровень %d" % monster_level
 	monster_health_label.text = "Здоровье: %d / %d" % [monster_health, monster_max_health]
 	monster_health_bar.max_value = monster_max_health
 	monster_health_bar.value = monster_health
-	monster_button.text = "◉\nАТАКОВАТЬ\nурон: %d" % click_power
+	monster_button.text = ("☠" if is_boss() else "◉") + "\nАТАКОВАТЬ\nурон: %d" % click_power
 	click_upgrade_button.text = "Усилить удар  +1\nСтоимость: %d монет" % click_upgrade_cost
 	passive_upgrade_button.text = "Пассивный доход  +1/с\nСтоимость: %d монет" % passive_upgrade_cost
+	critical_upgrade_button.text = "Критический удар  +5%%\nУрон ×%d · стоимость: %d монет" % [critical_multiplier, critical_upgrade_cost]
 	click_upgrade_button.disabled = coins < click_upgrade_cost
 	passive_upgrade_button.disabled = coins < passive_upgrade_cost
+	critical_upgrade_button.disabled = coins < critical_upgrade_cost
 
 func clear_screen() -> void:
 	for child in get_children():
