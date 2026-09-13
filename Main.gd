@@ -68,6 +68,7 @@ var weapon_label: Label
 var common_forge_button: Button
 var rare_forge_button: Button
 var epic_forge_button: Button
+var talent_points_label: Label
 
 func _ready() -> void:
 	build_start_screen()
@@ -220,6 +221,11 @@ func build_hunt_page(host: Control) -> void:
 	monster_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	monster_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	monster_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	monster_sprite.z_index = 2
+	monster_sprite.offset_left = -18
+	monster_sprite.offset_right = 18
+	monster_sprite.offset_top = -12
+	monster_sprite.offset_bottom = 12
 	monster_button.add_child(monster_sprite)
 	damage_layer = Control.new()
 	damage_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -289,8 +295,19 @@ func build_talents_page(host: Control) -> void:
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	box.add_theme_constant_override("separation", 14)
 	page.add_child(box)
-	box.add_child(make_label("Путь героя", 24, TEXT))
-	box.add_child(make_label("За каждый уровень вы получаете очко таланта. Соберите собственный билд.", 14, MUTED))
+	var heading := HBoxContainer.new()
+	box.add_child(heading)
+	var titles := VBoxContainer.new()
+	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(titles)
+	titles.add_child(make_label("Путь героя", 24, TEXT))
+	titles.add_child(make_label("Выберите направление. Каждый ранг сразу усиливает героя.", 14, MUTED))
+	var points_card := PanelContainer.new()
+	points_card.add_theme_stylebox_override("panel", panel_style(Color("26314f"), 14))
+	heading.add_child(points_card)
+	talent_points_label = make_label("", 15, GOLD)
+	talent_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	points_card.add_child(talent_points_label)
 	var talents := GridContainer.new()
 	talents.columns = 2
 	talents.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -305,6 +322,9 @@ func build_talents_page(host: Control) -> void:
 	rage_button.custom_minimum_size = Vector2(0, 64)
 	rage_button.pressed.connect(use_rage)
 	box.add_child(rage_button)
+	var guide := make_label("● — вложенный ранг   ○ — свободный ранг. Нажмите карточку, чтобы вложить очко таланта.", 13, MUTED)
+	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(guide)
 
 func make_tab_page(host: Control, tab_id: String) -> Control:
 	var page := Control.new()
@@ -342,6 +362,7 @@ func advance_monster_frame() -> void:
 	if monster_sprite == null or monster_frames.is_empty(): return
 	monster_sprite.texture = monster_frames[monster_frame_index]
 	monster_frame_index = (monster_frame_index + 1) % monster_frames.size()
+	monster_sprite.rotation = sin(Time.get_ticks_msec() * 0.005) * 0.028
 
 func attack_monster() -> void:
 	var critical := randf() < total_critical_chance()
@@ -378,7 +399,12 @@ func show_damage_popup(damage: int, critical: bool) -> void:
 func flash_monster(critical: bool) -> void:
 	if monster_sprite == null: return
 	monster_sprite.modulate = GOLD if critical else Color("ffcad6")
-	monster_sprite.create_tween().tween_property(monster_sprite, "modulate", Color.WHITE, 0.16)
+	var tween := monster_sprite.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(monster_sprite, "position:x", 22.0, 0.06)
+	tween.tween_property(monster_sprite, "modulate", Color.WHITE, 0.16)
+	tween.chain().tween_property(monster_sprite, "position:x", -8.0, 0.08)
+	tween.tween_property(monster_sprite, "position:x", 0.0, 0.12)
 
 func on_passive_tick() -> void:
 	if rage_cooldown > 0: rage_cooldown -= 1
@@ -543,11 +569,16 @@ func update_game_ui() -> void:
 	ingredients_label.text = "Клыки  %d   ·   Осколки  %d" % [fangs, crystals]
 	weapon_label.text = "Экипировано: %s  ·  бонус урона: +%d" % [weapon_title(), weapon_damage()]
 	common_forge_button.text = forge_button_text("common"); rare_forge_button.text = forge_button_text("rare"); epic_forge_button.text = forge_button_text("epic")
-	berserker_button.text = "Когти берсерка  %d/5\n+22%% к урону кликов" % berserker_rank
-	fortune_button.text = "Золотой след  %d/5\n+18%% к награде" % fortune_rank
-	totem_button.text = "Тотем добычи  %d/5\n+25%% к пассивному доходу" % totem_rank
-	precision_button.text = "Точный удар  %d/5\n+3%% к шансу крита" % precision_rank
-	rage_button.text = ("Ярость берсерка · ×8 урона" if berserker_rank >= 3 else "Ярость берсерка — закрыто · нужно 3/5 Когтей") + (" · %d с" % rage_cooldown if rage_cooldown > 0 else "")
+	if talent_points_label != null: talent_points_label.text = "Очки талантов: %d" % skill_points
+	berserker_button.text = talent_card_text("⚔  КОГТИ БЕРСЕРКА", berserker_rank, "+22% к урону кликов за ранг", "На 3 ранге: Ярость ×8")
+	fortune_button.text = talent_card_text("◈  ЗОЛОТОЙ СЛЕД", fortune_rank, "+18% к награде за убийство", "Больше монет с каждого монстра")
+	totem_button.text = talent_card_text("◌  ТОТЕМ ДОБЫЧИ", totem_rank, "+25% к пассивному доходу", "Доход работает каждую секунду")
+	precision_button.text = talent_card_text("✦  ТОЧНЫЙ УДАР", precision_rank, "+3% к шансу критического удара", "Крит наносит ×%d урона" % critical_multiplier)
+	berserker_button.tooltip_text = "Клик-урон. После трёх рангов открывается активная Ярость."
+	fortune_button.tooltip_text = "Экономическая ветка: увеличивает монеты за победу."
+	totem_button.tooltip_text = "Ветка пассивного дохода: усиливает монеты в секунду."
+	precision_button.tooltip_text = "Ветка критов: повышает шанс мощного удара."
+	rage_button.text = ("ЯРОСТЬ БЕРСЕРКА · нанести ×8 урона" if berserker_rank >= 3 else "ЯРОСТЬ БЕРСЕРКА — закрыто · вложите 3/5 в Когти") + (" · перезарядка %d с" % rage_cooldown if rage_cooldown > 0 else "")
 	click_upgrade_button.disabled = coins < click_upgrade_cost; passive_upgrade_button.disabled = coins < passive_upgrade_cost; critical_upgrade_button.disabled = coins < critical_upgrade_cost
 	berserker_button.disabled = skill_points <= 0 or berserker_rank >= 5; fortune_button.disabled = skill_points <= 0 or fortune_rank >= 5
 	totem_button.disabled = skill_points <= 0 or totem_rank >= 5; precision_button.disabled = skill_points <= 0 or precision_rank >= 5
@@ -557,6 +588,9 @@ func update_game_ui() -> void:
 func forge_button_text(rarity: String) -> String:
 	var recipe: Dictionary = WEAPON_RECIPES[rarity]
 	return "%s\nуровень %d+\n%d ◈ · %d клыков · %d осколков" % [recipe["title"], recipe["level"], recipe["coins"], recipe["fangs"], recipe["crystals"]]
+func talent_card_text(title: String, rank: int, effect: String, extra: String) -> String:
+	var progress := "●".repeat(rank) + "○".repeat(5 - rank)
+	return "%s\nРанг  %s\n%s\n%s" % [title, progress, effect, extra]
 func can_forge(rarity: String) -> bool:
 	var recipe: Dictionary = WEAPON_RECIPES[rarity]
 	return player_level >= recipe["level"] and coins >= recipe["coins"] and fangs >= recipe["fangs"] and crystals >= recipe["crystals"] and weapon_rank(rarity) > weapon_rank(equipped_weapon)
@@ -588,7 +622,7 @@ func make_forge_button(color: Color) -> Button:
 	var button := make_button("", 16, color); button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.custom_minimum_size = Vector2(0, 180)
 	return button
 func make_talent_button(color: Color) -> Button:
-	var button := make_button("", 16, color); button.custom_minimum_size = Vector2(0, 104); button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var button := make_button("", 15, color); button.custom_minimum_size = Vector2(0, 138); button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	return button
 func make_progress_bar(height: int, color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
