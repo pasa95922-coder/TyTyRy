@@ -1,6 +1,7 @@
 # Godot editor cache and imports
 .godot/
 .import/
+*.import
 
 # Android and release exports
 *.apk
