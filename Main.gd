@@ -51,7 +51,6 @@ var experience_bar: ProgressBar
 var monster_title: Label
 var monster_health_label: Label
 var monster_health_bar: ProgressBar
-var monster_button: Button
 var monster_sprite: TextureRect
 var damage_layer: Control
 var status_label: Label
@@ -212,27 +211,22 @@ func build_hunt_page(host: Control) -> void:
 	arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	arena.clip_contents = true
 	arena_box.add_child(arena)
-	monster_button = Button.new()
-	monster_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	monster_button.tooltip_text = "Нажмите на монстра, чтобы атаковать"
-	monster_button.add_theme_stylebox_override("normal", panel_style(Color("101934"), 16))
-	monster_button.add_theme_stylebox_override("hover", panel_style(Color("17244a"), 16))
-	monster_button.add_theme_stylebox_override("pressed", panel_style(Color("263561"), 16))
-	monster_button.pressed.connect(attack_monster)
-	arena.add_child(monster_button)
 	monster_sprite = TextureRect.new()
 	monster_sprite.anchor_left = 0.5
 	monster_sprite.anchor_top = 0.5
 	monster_sprite.anchor_right = 0.5
 	monster_sprite.anchor_bottom = 0.5
-	monster_sprite.offset_left = -175
-	monster_sprite.offset_top = -175
-	monster_sprite.offset_right = 175
-	monster_sprite.offset_bottom = 175
+	monster_sprite.offset_left = -195
+	monster_sprite.offset_top = -195
+	monster_sprite.offset_right = 195
+	monster_sprite.offset_bottom = 195
 	monster_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	monster_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	monster_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	monster_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	monster_sprite.mouse_filter = Control.MOUSE_FILTER_STOP
+	monster_sprite.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	monster_sprite.pivot_offset = Vector2(195, 195)
+	monster_sprite.gui_input.connect(on_monster_gui_input)
 	monster_sprite.z_index = 2
 	arena.add_child(monster_sprite)
 	damage_layer = Control.new()
@@ -417,12 +411,39 @@ func show_damage_popup(damage: int, critical: bool) -> void:
 func flash_monster(critical: bool) -> void:
 	if monster_sprite == null: return
 	monster_sprite.modulate = GOLD if critical else Color("ffcad6")
+	monster_sprite.scale = Vector2.ONE
 	var tween := monster_sprite.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(monster_sprite, "position:x", 22.0, 0.06)
+	tween.tween_property(monster_sprite, "scale", Vector2(1.08, 1.08), 0.07)
 	tween.tween_property(monster_sprite, "modulate", Color.WHITE, 0.16)
-	tween.chain().tween_property(monster_sprite, "position:x", -8.0, 0.08)
-	tween.tween_property(monster_sprite, "position:x", 0.0, 0.12)
+	tween.chain().tween_property(monster_sprite, "scale", Vector2.ONE, 0.15)
+
+func on_monster_gui_input(event: InputEvent) -> void:
+	if monster_sprite == null or not is_monster_pixel_opaque(event): return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		attack_monster()
+	elif event is InputEventScreenTouch and event.pressed:
+		attack_monster()
+
+func is_monster_pixel_opaque(event: InputEvent) -> bool:
+	var texture := monster_sprite.texture
+	if texture == null: return false
+	var local_position := Vector2.ZERO
+	if event is InputEventMouseButton: local_position = monster_sprite.to_local(event.position)
+	elif event is InputEventScreenTouch: local_position = monster_sprite.to_local(event.position)
+	else: return false
+	var image := texture.get_image()
+	if image == null or image.get_width() == 0 or image.get_height() == 0: return false
+	var texture_size := Vector2(image.get_width(), image.get_height())
+	var draw_scale := min(monster_sprite.size.x / texture_size.x, monster_sprite.size.y / texture_size.y)
+	var drawn_size := texture_size * draw_scale
+	var drawn_offset := (monster_sprite.size - drawn_size) * 0.5
+	var texture_position := local_position - drawn_offset
+	if texture_position.x < 0.0 or texture_position.y < 0.0 or texture_position.x >= drawn_size.x or texture_position.y >= drawn_size.y:
+		return false
+	var pixel_x := clampi(int(texture_position.x / drawn_size.x * texture_size.x), 0, image.get_width() - 1)
+	var pixel_y := clampi(int(texture_position.y / drawn_size.y * texture_size.y), 0, image.get_height() - 1)
+	return image.get_pixel(pixel_x, pixel_y).a > 0.12
 
 func on_passive_tick() -> void:
 	if rage_cooldown > 0: rage_cooldown -= 1
@@ -580,7 +601,6 @@ func update_game_ui() -> void:
 	monster_title.text = ("БОСС · древний монстрик" if is_boss() else "Лесной монстрик") + " · ур. %d" % monster_level
 	monster_health_label.text = "Здоровье  %d / %d" % [monster_health, monster_max_health]
 	monster_health_bar.max_value = monster_max_health; monster_health_bar.value = monster_health
-	monster_button.tooltip_text = "Атаковать · урон %d" % manual_damage()
 	click_upgrade_button.text = "⚔  Сила удара  +1\n%d монет" % click_upgrade_cost
 	passive_upgrade_button.text = "◌  Пассивный доход  +1/с\n%d монет" % passive_upgrade_cost
 	critical_upgrade_button.text = "✦  Критический удар  +5%%\n×%d урон · %d монет" % [critical_multiplier, critical_upgrade_cost]
