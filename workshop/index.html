@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121725" />
+    <title>Мастерская спрайтов</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">✦</span><span>Мастерская</span></div>
+      <label class="project-name">Проект <input id="project-name" value="Мифический зверь" aria-label="Название проекта" /></label>
+      <div class="top-actions">
+        <button id="undo" class="ghost" title="Отменить">↶</button>
+        <button id="redo" class="ghost" title="Повторить">↷</button>
+        <button id="export-frames" class="primary">Скачать PNG-кадры</button>
+        <button id="export-gif" class="secondary">Скачать GIF-превью</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar library-panel">
+        <section>
+          <div class="section-title"><h2>Библиотека</h2><button id="import-image" class="icon-button" title="Импорт PNG">＋</button><input id="file-input" type="file" accept="image/png,image/webp,image/gif" hidden /></div>
+          <div id="library-tabs" class="tabs" role="tablist" aria-label="Категории библиотеки">
+            <button data-library="character" class="tab is-active" role="tab" aria-selected="true">Зверь</button>
+            <button data-library="effects" class="tab" role="tab" aria-selected="false">Эффекты</button>
+            <button data-library="custom" class="tab" role="tab" aria-selected="false">Импорт</button>
+          </div>
+          <div id="asset-grid" class="asset-grid" aria-label="Доступные спрайты"></div>
+          <p class="hint">Щёлкните по элементу, чтобы добавить его в текущий кадр.</p>
+        </section>
+
+        <section class="palette-section">
+          <div class="section-title"><h2>Цвета слоя</h2><button id="add-palette-color" class="icon-button" title="Добавить цвет в палитру">＋</button></div>
+          <button id="eyedropper-tool" class="secondary palette-button">⌖ Пипетка</button>
+          <div class="picked-color"><span id="picked-swatch" class="picked-swatch"></span><span id="picked-color">Выберите цвет на спрайте</span></div>
+          <label class="color-row">Новый цвет <input id="palette-color" type="color" value="#39b9b4" /></label>
+          <label class="compact-label">Заменить <select id="recolor-mode"><option value="exact">все пиксели цвета</option><option value="connected">только связный участок</option></select></label>
+          <label class="compact-label">Где <select id="recolor-scope"><option value="layer">в этом слое</option><option value="animation">слой № на всех кадрах</option></select></label>
+          <button id="apply-recolor" class="primary palette-button" disabled>Заменить цвет</button>
+          <button id="clear-recolors" class="ghost palette-button" disabled>Сбросить замены слоя</button>
+          <div id="recolor-list" class="recolor-list" aria-label="Активные замены цветов"></div>
+          <p class="hint">Пипеткой возьмите тень, базовый цвет и блик по очереди — так сохраняется объём без грязной тонировки.</p>
+          <div id="palette" class="palette" aria-label="Цвета для замены"></div>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-label="Сцена редактирования">
+        <div class="workspace-toolbar">
+          <div class="mode-tools" role="group" aria-label="Инструменты">
+            <button id="select-tool" class="tool is-active" data-tool="select">↖ Выбор</button>
+            <button id="crop-tool" class="tool" data-tool="crop">✂ Вырезать часть</button>
+            <button id="grid-toggle" class="tool is-active" aria-pressed="true"># Сетка</button>
+            <button id="onion-toggle" class="tool" aria-pressed="false" title="Показать предыдущий и следующий кадры">◌ Соседние</button>
+          </div>
+          <div class="stage-info"><span id="frame-label">Атака · кадр 01</span><span class="dot">•</span><span>96 × 96 px</span></div>
+        </div>
+
+        <div id="canvas-wrap" class="canvas-wrap checker" aria-label="Рабочая область, 96 на 96 пикселей">
+          <canvas id="stage" width="96" height="96"></canvas>
+          <canvas id="overlay" width="96" height="96" aria-label="Инструменты выделения"></canvas>
+        </div>
+        <div class="canvas-notes">
+          <span>Опора <b>Y 92</b></span><span>Пивот <b>X 48</b></span><span id="tool-hint">Перетаскивайте выбранный слой мышью или стрелками.</span>
+        </div>
+      </section>
+
+      <aside class="sidebar inspector-panel">
+        <section>
+          <div class="section-title"><h2>Слои</h2><button id="add-empty-layer" class="icon-button" title="Добавить пустой слой">＋</button></div>
+          <div id="layer-list" class="layer-list" aria-label="Слои текущего кадра"></div>
+          <div class="layer-actions">
+            <button id="cut-part" class="secondary" disabled>Вынести фрагмент</button>
+            <button id="delete-layer" class="danger" disabled>Удалить</button>
+          </div>
+        </section>
+
+        <section id="inspector" class="inspector" aria-label="Свойства выбранного слоя">
+          <div class="section-title"><h2>Свойства</h2><span id="selected-name" class="muted">Ничего не выбрано</span></div>
+          <label>Название <input id="layer-name" data-prop="name" type="text" disabled /></label>
+          <div class="form-grid">
+            <label>X <input id="pos-x" data-prop="x" type="number" min="-96" max="96" step="1" disabled /></label>
+            <label>Y <input id="pos-y" data-prop="y" type="number" min="-96" max="96" step="1" disabled /></label>
+            <label>Масштаб <input id="scale" data-prop="scale" type="number" min="0.25" max="3" step="0.05" disabled /></label>
+            <label>Поворот <input id="rotation" data-prop="rotation" type="number" min="-180" max="180" step="1" disabled /></label>
+          </div>
+          <label>Непрозрачность <span id="opacity-value" class="value">100%</span><input id="opacity" data-prop="opacity" type="range" min="0" max="100" step="1" disabled /></label>
+          <label>Оттенок <span id="hue-value" class="value">0°</span><input id="hue" data-prop="hue" type="range" min="-180" max="180" step="1" disabled /></label>
+          <div class="form-grid">
+            <label>Яркость <input id="brightness" data-prop="brightness" type="number" min="30" max="200" step="1" disabled /></label>
+            <label>Насыщенность <input id="saturation" data-prop="saturation" type="number" min="0" max="250" step="1" disabled /></label>
+          </div>
+          <label class="color-scope-label">Цвет применить
+            <select id="color-scope" disabled>
+              <option value="layer">к этому слою</option>
+              <option value="animation">к слою № во всех кадрах</option>
+            </select>
+          </label>
+          <button id="flip-x" class="secondary" disabled>↔ Отразить по X</button>
+        </section>
+      </aside>
+    </main>
+
+    <section class="timeline" aria-label="Шкала анимации">
+      <div class="timeline-head">
+        <div class="animation-picker">
+          <label for="animation-select">Анимация</label>
+          <select id="animation-select">
+            <option value="idle">Покой</option>
+            <option value="attack" selected>Атака</option>
+            <option value="hurt">Получение урона</option>
+            <option value="death">Смерть</option>
+          </select>
+          <button id="new-animation" class="secondary">Новая</button>
+        </div>
+        <div class="playback">
+          <button id="previous-frame" class="ghost" title="Предыдущий кадр">|◀</button>
+          <button id="play" class="primary">▶ Воспроизвести</button>
+          <button id="next-frame" class="ghost" title="Следующий кадр">▶|</button>
+          <label>Темп <input id="speed" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
+          <label class="loop-label"><input id="loop" type="checkbox" checked /> Повтор</label>
+        </div>
+        <div class="timeline-actions">
+          <button id="duplicate-frame" class="secondary">Дублировать</button>
+          <button id="add-frame" class="secondary">＋ Кадр</button>
+          <button id="remove-frame" class="danger">−</button>
+          <button id="export-png" class="secondary">PNG кадра</button>
+        </div>
+      </div>
+      <div id="frames" class="frames" aria-label="Кадры анимации"></div>
+      <div class="timeline-foot">
+        <label>Длительность <input id="frame-duration" type="number" min="20" max="2000" step="10" value="90" /> мс</label>
+        <label>Масштаб кадра <input id="frame-scale" type="number" min="0.25" max="3" step="0.05" value="1" /> ×</label>
+        <select id="frame-scale-scope" aria-label="Куда применить масштаб кадра">
+          <option value="current">Только этот кадр</option>
+          <option value="animation">Все кадры анимации</option>
+        </select>
+        <button id="reset-frame-scale" class="ghost" title="Сбросить масштаб кадра">Сбросить</button>
+        <span id="timeline-summary" class="muted"></span>
+      </div>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
