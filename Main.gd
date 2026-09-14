@@ -80,17 +80,17 @@ func build_start_screen() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	page.add_child(center)
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(540, 0)
+	card.custom_minimum_size = Vector2(0, 0)
 	card.add_theme_stylebox_override("panel", panel_style(PANEL, 28))
 	center.add_child(card)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 18)
-	set_box_margins(content, 42)
+	set_box_margins(content, 28)
 	card.add_child(content)
 	var eyebrow := make_label("ПИКСЕЛЬНОЕ ПРИКЛЮЧЕНИЕ", 15, ACCENT)
 	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(eyebrow)
-	var title := make_label("MONSTER CLICKER", 44, TEXT)
+	var title := make_label("MONSTER CLICKER", 34, TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(title)
 	var intro := make_label("Охотьтесь, крафтите оружие и собирайте свой билд.", 18, MUTED)
@@ -115,53 +115,47 @@ func build_game_screen() -> void:
 	var page := make_page()
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
 	page.add_child(margin)
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 9)
 	margin.add_child(layout)
 
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 16)
+	header.add_theme_constant_override("separation", 10)
 	layout.add_child(header)
 	var title_stack := VBoxContainer.new()
 	title_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_stack)
-	title_stack.add_child(make_label("MONSTER CLICKER", 25, TEXT))
+	title_stack.add_child(make_label("MONSTER CLICKER", 21, TEXT))
 	build_label = make_label("", 13, MUTED)
 	title_stack.add_child(build_label)
 	var coin_card := PanelContainer.new()
-	coin_card.add_theme_stylebox_override("panel", panel_style(Color("293452"), 14))
+	coin_card.add_theme_stylebox_override("panel", panel_style(Color("293452"), 13))
 	header.add_child(coin_card)
-	balance_label = make_label("", 21, GOLD)
+	balance_label = make_label("", 19, GOLD)
 	balance_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	coin_card.add_child(balance_label)
 	var player_row := HBoxContainer.new()
-	player_row.add_theme_constant_override("separation", 12)
+	player_row.add_theme_constant_override("separation", 8)
 	layout.add_child(player_row)
-	player_level_label = make_label("", 14, ACCENT)
+	player_level_label = make_label("", 13, ACCENT)
 	player_level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_row.add_child(player_level_label)
-	passive_summary_label = make_label("", 14, MUTED)
+	passive_summary_label = make_label("", 12, MUTED)
 	passive_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	player_row.add_child(passive_summary_label)
-	experience_bar = make_progress_bar(12, ACCENT)
+	experience_bar = make_progress_bar(10, ACCENT)
 	layout.add_child(experience_bar)
-	var navigation := HBoxContainer.new()
-	navigation.add_theme_constant_override("separation", 10)
-	layout.add_child(navigation)
-	add_tab_button(navigation, "hunt", "⚔  Охота")
-	add_tab_button(navigation, "forge", "⚒  Кузница")
-	add_tab_button(navigation, "talents", "✦  Таланты")
 	var content_frame := PanelContainer.new()
 	content_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_frame.add_theme_stylebox_override("panel", panel_style(Color("111a32"), 22))
+	content_frame.add_theme_stylebox_override("panel", panel_style(Color("111a32"), 18))
 	layout.add_child(content_frame)
 	var content_host := Control.new()
-	content_host.custom_minimum_size = Vector2(0, 490)
+	content_host.custom_minimum_size = Vector2(0, 820)
 	content_frame.add_child(content_host)
 	build_hunt_page(content_host)
 	build_forge_page(content_host)
@@ -169,6 +163,12 @@ func build_game_screen() -> void:
 	status_label = make_label("", 14, ACCENT)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	layout.add_child(status_label)
+	var navigation := HBoxContainer.new()
+	navigation.add_theme_constant_override("separation", 8)
+	layout.add_child(navigation)
+	add_tab_button(navigation, "hunt", "⚔\nОхота")
+	add_tab_button(navigation, "forge", "⚒\nКузница")
+	add_tab_button(navigation, "talents", "✦\nТаланты")
 	var passive_timer := Timer.new()
 	passive_timer.wait_time = 1.0
 	passive_timer.timeout.connect(on_passive_tick)
@@ -185,26 +185,27 @@ func build_game_screen() -> void:
 
 func build_hunt_page(host: Control) -> void:
 	var page := make_tab_page(host, "hunt")
-	var content := HBoxContainer.new()
+	var content := VBoxContainer.new()
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	content.add_theme_constant_override("separation", 16)
+	content.add_theme_constant_override("separation", 10)
 	page.add_child(content)
 	var arena_card := PanelContainer.new()
-	arena_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	arena_card.size_flags_stretch_ratio = 1.35
+	arena_card.custom_minimum_size = Vector2(0, 420)
+	arena_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	arena_card.size_flags_stretch_ratio = 1.1
 	arena_card.add_theme_stylebox_override("panel", panel_style(PANEL, 18))
 	content.add_child(arena_card)
 	var arena_box := VBoxContainer.new()
-	arena_box.add_theme_constant_override("separation", 9)
-	set_box_margins(arena_box, 18)
+	arena_box.add_theme_constant_override("separation", 7)
+	set_box_margins(arena_box, 12)
 	arena_card.add_child(arena_box)
-	monster_title = make_label("", 22, TEXT)
+	monster_title = make_label("", 20, TEXT)
 	monster_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	arena_box.add_child(monster_title)
-	monster_health_label = make_label("", 15, MUTED)
+	monster_health_label = make_label("", 14, MUTED)
 	monster_health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	arena_box.add_child(monster_health_label)
-	monster_health_bar = make_progress_bar(18, DANGER)
+	monster_health_bar = make_progress_bar(16, DANGER)
 	arena_box.add_child(monster_health_bar)
 	var arena := Control.new()
 	arena.custom_minimum_size = Vector2(0, 290)
@@ -224,10 +225,10 @@ func build_hunt_page(host: Control) -> void:
 	monster_sprite.anchor_top = 0.5
 	monster_sprite.anchor_right = 0.5
 	monster_sprite.anchor_bottom = 0.5
-	monster_sprite.offset_left = -145
-	monster_sprite.offset_top = -145
-	monster_sprite.offset_right = 145
-	monster_sprite.offset_bottom = 145
+	monster_sprite.offset_left = -175
+	monster_sprite.offset_top = -175
+	monster_sprite.offset_right = 175
+	monster_sprite.offset_bottom = 175
 	monster_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	monster_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	monster_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -243,15 +244,15 @@ func build_hunt_page(host: Control) -> void:
 	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	arena_box.add_child(tap_hint)
 	var upgrades_card := PanelContainer.new()
-	upgrades_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	upgrades_card.custom_minimum_size = Vector2(0, 320)
 	upgrades_card.add_theme_stylebox_override("panel", panel_style(PANEL, 18))
 	content.add_child(upgrades_card)
 	var upgrades := VBoxContainer.new()
 	upgrades.add_theme_constant_override("separation", 12)
-	set_box_margins(upgrades, 18)
+	set_box_margins(upgrades, 14)
 	upgrades_card.add_child(upgrades)
-	upgrades.add_child(make_label("Лагерь охотника", 21, TEXT))
-	var hint := make_label("Усиливайте героя и добывайте ингредиенты в бою.", 14, MUTED)
+	upgrades.add_child(make_label("Лагерь охотника", 19, TEXT))
+	var hint := make_label("Усиливайте героя и добывайте ингредиенты в бою.", 13, MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	upgrades.add_child(hint)
 	click_upgrade_button = make_upgrade_button(); click_upgrade_button.pressed.connect(buy_click_upgrade); upgrades.add_child(click_upgrade_button)
@@ -263,10 +264,15 @@ func build_hunt_page(host: Control) -> void:
 
 func build_forge_page(host: Control) -> void:
 	var page := make_tab_page(host, "forge")
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.custom_minimum_size = Vector2(0, 900)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 16)
-	page.add_child(box)
+	scroll.add_child(box)
 	var heading := HBoxContainer.new()
 	box.add_child(heading)
 	var titles := VBoxContainer.new()
@@ -286,9 +292,8 @@ func build_forge_page(host: Control) -> void:
 	weapon_label = make_label("", 16, ACCENT)
 	weapon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	weapon_card.add_child(weapon_label)
-	var recipes := HBoxContainer.new()
-	recipes.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	recipes.add_theme_constant_override("separation", 12)
+	var recipes := VBoxContainer.new()
+	recipes.add_theme_constant_override("separation", 10)
 	box.add_child(recipes)
 	common_forge_button = make_forge_button(Color("45536e")); common_forge_button.pressed.connect(forge_weapon.bind("common")); recipes.add_child(common_forge_button)
 	rare_forge_button = make_forge_button(VIOLET); rare_forge_button.pressed.connect(forge_weapon.bind("rare")); recipes.add_child(rare_forge_button)
@@ -299,10 +304,15 @@ func build_forge_page(host: Control) -> void:
 
 func build_talents_page(host: Control) -> void:
 	var page := make_tab_page(host, "talents")
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.custom_minimum_size = Vector2(0, 900)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 14)
-	page.add_child(box)
+	scroll.add_child(box)
 	var heading := HBoxContainer.new()
 	box.add_child(heading)
 	var titles := VBoxContainer.new()
@@ -337,15 +347,15 @@ func build_talents_page(host: Control) -> void:
 func make_tab_page(host: Control, tab_id: String) -> Control:
 	var page := Control.new()
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	page.offset_left = 18; page.offset_right = -18; page.offset_top = 18; page.offset_bottom = -18
+	page.offset_left = 10; page.offset_right = -10; page.offset_top = 10; page.offset_bottom = -10
 	host.add_child(page)
 	tab_pages[tab_id] = page
 	return page
 
 func add_tab_button(parent: Container, tab_id: String, title: String) -> void:
-	var button := make_button(title, 16, PANEL_LIGHT)
+	var button := make_button(title, 14, PANEL_LIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.custom_minimum_size = Vector2(0, 46)
+	button.custom_minimum_size = Vector2(0, 58)
 	button.pressed.connect(switch_tab.bind(tab_id))
 	parent.add_child(button)
 	tab_buttons[tab_id] = button
@@ -624,10 +634,10 @@ func make_button(value: String, font_size: int, color: Color) -> Button:
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return button
 func make_upgrade_button() -> Button:
-	var button := make_button("", 17, PANEL_LIGHT); button.custom_minimum_size = Vector2(0, 82); button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var button := make_button("", 16, PANEL_LIGHT); button.custom_minimum_size = Vector2(0, 78); button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	return button
 func make_forge_button(color: Color) -> Button:
-	var button := make_button("", 16, color); button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.custom_minimum_size = Vector2(0, 180)
+	var button := make_button("", 16, color); button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.custom_minimum_size = Vector2(0, 150)
 	return button
 func make_talent_button(color: Color) -> Button:
 	var button := make_button("", 15, color); button.custom_minimum_size = Vector2(0, 138); button.alignment = HORIZONTAL_ALIGNMENT_LEFT
